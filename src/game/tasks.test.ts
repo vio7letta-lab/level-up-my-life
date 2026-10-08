@@ -153,7 +153,7 @@ describe('Автоматическая оценка', () => {
 describe('Импорт', () => {
   it('1. импорт 10 задач → в Inbox, с авто-оценкой', () => {
     const r = imp(blank(), TEN)
-    expect(r.summary).toEqual({ added: 10, archived: 0, completed: 0, duplicates: 0 })
+    expect(r.summary).toEqual({ added: 10, archived: 0, completed: 0, duplicates: 0, renamed: 0 })
     const inbox = inboxTasks(r.state)
     expect(inbox).toHaveLength(10)
     expect(inbox.every((q) => q.source === 'notes' && q.sourceId && q.auto && q.status === 'open' && q.xpEarned === 0)).toBe(true)
@@ -163,7 +163,7 @@ describe('Импорт', () => {
   it('2. повторный импорт тех же 10 задач — дубликатов нет', () => {
     const once = imp(blank(), TEN).state
     const twice = imp(once, TEN)
-    expect(twice.summary).toEqual({ added: 0, archived: 0, completed: 0, duplicates: 10 })
+    expect(twice.summary).toEqual({ added: 0, archived: 0, completed: 0, duplicates: 10, renamed: 0 })
     expect(twice.state.quests).toHaveLength(10)
     // даже если задачи уже разобраны и переименованы
     const planned = planTask(once, once.quests[0].id, TODAY, NOW).state
@@ -189,7 +189,7 @@ describe('Импорт', () => {
     expect(r.state.profile.totalXp).toBeGreaterThanOrEqual(25)
     // ещё раз тот же текст — награды больше нет
     const again = imp(r.state, 'Учёба\n✓ Лаба физхимия')
-    expect(again.summary).toEqual({ added: 0, archived: 0, completed: 0, duplicates: 1 })
+    expect(again.summary).toEqual({ added: 0, archived: 0, completed: 0, duplicates: 1, renamed: 0 })
     expect(again.state.profile).toEqual(r.state.profile)
   })
 
@@ -199,7 +199,7 @@ describe('Импорт', () => {
     expect(by('Лабы ПАХТ')).toMatchObject({ context: 'Учёба', stat: 'knowledge', goalId: 'goal-uni' })
     expect(by('Вернуться к работе')).toMatchObject({ context: 'Работа', stat: 'career', goalId: 'goal-manager' })
     expect(by('Отправить резюме и сопроводительные письма hh.ru 50–100 штук в сумме')).toMatchObject({ stat: 'career', difficulty: 'big' })
-    expect(r.summary).toEqual({ added: 13, archived: 4, completed: 0, duplicates: 0 })
+    expect(r.summary).toEqual({ added: 13, archived: 4, completed: 0, duplicates: 0, renamed: 0 })
   })
 
   it('задача с датой в тексте минует Inbox и сразу планируется', () => {

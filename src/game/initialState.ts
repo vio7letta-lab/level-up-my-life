@@ -27,6 +27,7 @@ export function createInitialState(now: Date, name: string = APP.playerName): Ga
     income: [],
     streak: { current: 0, best: 0, shields: 0, totalActiveDays: 0 },
     history: [],
+    importLog: [],
     settings: { dailyQuestLimit: 5, templateQuests: true },
   }
 }

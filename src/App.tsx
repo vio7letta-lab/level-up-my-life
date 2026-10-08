@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import { readPrefs, writePrefs } from './app/prefs'
 import { useRoute, type Route } from './app/routes'
+import { ImportLauncherProvider } from './app/importLauncher'
 import { useTheme } from './app/useTheme'
+import { isImportHash } from './sources/ShortcutUrlSource'
 import { BottomNav } from './components/BottomNav'
 import { FeedbackLayer } from './components/FeedbackLayer'
 import { CharacterScreen } from './screens/CharacterScreen'
@@ -25,7 +27,8 @@ export default function App() {
         onDone={() => {
           writePrefs({ welcomeSeen: true })
           setWelcomeSeen(true)
-          navigate('home')
+          // пришли по ссылке импорта из Shortcut — не теряем её после приветствия
+          if (!isImportHash(location.hash)) navigate('home')
         }}
       />
     )
@@ -41,11 +44,13 @@ export default function App() {
 
   return (
     <GameProvider>
-      <main key={`${route}/${param ?? ''}`} className="pt-safe mx-auto max-w-xl animate-fade px-4 pb-32">
-        <div className="pt-8">{screens[route]}</div>
-      </main>
-      <BottomNav route={route} onNavigate={navigate} />
-      <FeedbackLayer />
+      <ImportLauncherProvider>
+        <main key={`${route}/${param ?? ''}`} className="pt-safe mx-auto max-w-xl animate-fade px-4 pb-32">
+          <div className="pt-8">{screens[route]}</div>
+        </main>
+        <BottomNav route={route} onNavigate={navigate} />
+        <FeedbackLayer />
+      </ImportLauncherProvider>
     </GameProvider>
   )
 }

@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { Button } from '../components/Button'
 import { Choice } from '../components/Field'
 import { HistoryList } from '../components/HistoryList'
-import { ImportSheet } from '../components/ImportSheet'
 import { QuestCard } from '../components/QuestCard'
 import { QuestFormSheet } from '../components/QuestFormSheet'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { SectionTitle } from '../components/SectionTitle'
+import { SourcesCard } from '../components/SourcesCard'
+import { useImportLauncher } from '../app/importLauncher'
 import { TaskRow } from '../components/TaskRow'
 import { useGame } from '../store/GameContext'
 import { backlogTasks, inboxTasks, todayQuests } from '../store/selectors'
@@ -17,7 +18,7 @@ export type QuestsTab = 'today' | 'inbox' | 'backlog' | 'history'
 export function QuestsScreen({ tab, onTab }: { tab: QuestsTab; onTab: (t: QuestsTab) => void }) {
   const { state, today, planTask } = useGame()
   const [adding, setAdding] = useState(false)
-  const [importing, setImporting] = useState(false)
+  const { quickImport } = useImportLauncher()
   const t = todayQuests(state, today)
   const inbox = inboxTasks(state)
   const backlog = backlogTasks(state, today)
@@ -84,8 +85,8 @@ export function QuestsScreen({ tab, onTab }: { tab: QuestsTab; onTab: (t: Quests
             <Button variant="ghost" onClick={() => setAdding(true)}>
               + Задача
             </Button>
-            <Button variant="ghost" onClick={() => setImporting(true)}>
-              📥 Импорт
+            <Button variant="ghost" onClick={quickImport}>
+              ⚡ Импорт
             </Button>
           </div>
         </>
@@ -93,9 +94,7 @@ export function QuestsScreen({ tab, onTab }: { tab: QuestsTab; onTab: (t: Quests
 
       {tab === 'inbox' && (
         <>
-          <Button className="w-full" onClick={() => setImporting(true)}>
-            📥 Импорт из заметки
-          </Button>
+          <SourcesCard />
           {inbox.length === 0 ? (
             <p className="px-1 text-sm leading-relaxed text-muted">
               Inbox пуст. Сюда попадают новые задачи из заметок, пока ты не решишь, когда их делать. Категория, сложность, XP и цель уже определены — остаётся выбрать день.
@@ -152,7 +151,6 @@ export function QuestsScreen({ tab, onTab }: { tab: QuestsTab; onTab: (t: Quests
       {tab === 'history' && <HistoryList entries={state.history} />}
 
       {adding && <QuestFormSheet open onClose={() => setAdding(false)} />}
-      {importing && <ImportSheet open onClose={() => setImporting(false)} />}
     </div>
   )
 }

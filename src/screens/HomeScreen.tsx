@@ -1,3 +1,4 @@
+import { useImportLauncher } from '../app/importLauncher'
 import { AchievementGrid } from '../components/AchievementGrid'
 import { BossCard } from '../components/BossCard'
 import { Card } from '../components/Card'
@@ -24,6 +25,7 @@ export function HomeScreen({ onOpenGoal, onOpenQuests }: { onOpenGoal: (id?: str
   const t = todayQuests(state, today)
   const { mains, picked, hidden } = homeQuests(state, today)
   const inbox = inboxTasks(state).length
+  const { quickImport } = useImportLauncher()
   const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
   const goals = state.goals
     .filter((g) => !g.completedAt)
@@ -53,18 +55,18 @@ export function HomeScreen({ onOpenGoal, onOpenQuests }: { onOpenGoal: (id?: str
         {t.completed === t.total && t.total > 0 && <p className="mt-2 text-sm text-accent">Все задачи дня закрыты. Остальное время — твоё ✨</p>}
       </Card>
 
-      {inbox > 0 && (
-        <button onClick={() => onOpenQuests('inbox')} className="glass flex w-full items-center gap-4 rounded-3xl p-4 text-left transition active:scale-[0.99]">
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent-soft text-xl">📥</span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold">
-              Inbox · {inbox} {inbox === 1 ? 'новая задача' : inbox < 5 ? 'новые задачи' : 'новых задач'}
-            </span>
-            <span className="block text-sm text-muted">Разобрать: сегодня, завтра или позже</span>
+      <div className="glass flex items-center gap-3 rounded-3xl p-3 pl-4">
+        <button onClick={() => onOpenQuests('inbox')} className="flex min-h-12 min-w-0 flex-1 items-center gap-3 text-left">
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-accent-soft text-lg">📥</span>
+          <span className="min-w-0">
+            <span className="block font-semibold">{inbox > 0 ? `Inbox · ${inbox}` : 'Inbox пуст'}</span>
+            <span className="block truncate text-xs text-muted">{inbox > 0 ? 'Разобрать: сегодня, завтра, позже' : 'Обновила заметку? Импортируй'}</span>
           </span>
-          <span className="text-accent">→</span>
         </button>
-      )}
+        <button onClick={quickImport} className="min-h-11 shrink-0 rounded-2xl bg-accent px-4 text-sm font-semibold text-on-accent transition active:scale-95">
+          ⚡ Импорт
+        </button>
+      </div>
 
       {mains.length > 0 && (
         <div>

@@ -4,7 +4,7 @@
  */
 import { ACHIEVEMENTS } from '../config/achievements'
 import { DIFFICULTIES, REWARDS } from '../config/rewards'
-import type { Area, Difficulty, GameEffect, GameState, Goal, GoalMetric, HistoryEntry, ISODate, Quest, QuestResult, StatKey, TaskSourceKind } from '../types'
+import type { Area, Difficulty, GameEffect, GameState, Goal, GoalMetric, HistoryEntry, ImportRecord, ISODate, Quest, QuestResult, StatKey, TaskSourceKind } from '../types'
 import { classifyTask } from './classify'
 import { createBoss } from './boss'
 import { toISODate } from './dates'
@@ -12,6 +12,7 @@ import { ensureDailyQuests, questFromTemplate } from './daily'
 import { goalCurrent, goalTarget } from './goals'
 import { uid } from './ids'
 import { levelInfo, levelTitle, statLevelInfo } from './levels'
+import { planImport, type PlanOptions } from './importer'
 import type { ParsedTask } from './notesParser'
 import { registerActivity } from './streak'
 import { isActive, isEditable, isPlannedFor } from './today'
@@ -351,53 +352,81 @@ export function swapQuest(state: GameState, questId: string, now: Date): ActionR
 
 /* ───────────────────────── Импорт задач ───────────────────────── */
 
-export type ImportAction = 'new' | 'archive' | 'complete' | 'duplicate'
-
-/**
- * Что произойдёт с задачей при импорте:
- * - new — новая задача (в Inbox, или сразу в Today/Backlog, если в тексте была дата);
- * - archive — уже выполнена при первом импорте → в архив без XP;
- * - complete — была активной в RPG, а в источнике стала ✓ → закрываем с полной наградой (один раз);
- * - duplicate — уже есть, ничего не меняем.
- */
-export function importAction(state: GameState, p: ParsedTask): ImportAction {
-  const existing = state.quests.find((q) => q.sourceId === p.fingerprint)
-  if (!existing) return p.done ? 'archive' : 'new'
-  return p.done && isEditable(existing) ? 'complete' : 'duplicate'
-}
+export type { ImportAction } from './importer'
 
 export interface ImportSummary {
   added: number
   archived: number
   completed: number
   duplicates: number
+  /** задачи, у которых в заметке поменяли текст: привязка обновлена, дубль не создан */
+  renamed: number
 }
 
+export interface ImportOptions extends PlanOptions {
+  /** откуда пришёл текст — для журнала импортов */
+  sourceLabel?: string
+  /**
+   * all — новые + ✓ с наградой + архив выполненных (по умолчанию);
+   * new — только новые задачи, существующие не трогаем.
+   * Оба режима безопасны: дубликаты не создаются никогда.
+   */
+  mode?: 'new' | 'all'
+}
+
+/** Сколько записей журнала импортов хранить */
+export const IMPORT_LOG_LIMIT = 20
+
+/**
+ * Импорт задач из внешнего источника. Работает строго по planImport() — тому же плану,
+ * что видит пользователь в предпросмотре. Удалённые из заметки задачи не трогаются.
+ */
 export function importTasks(
   state: GameState,
   tasks: ParsedTask[],
   now: Date,
   source: TaskSourceKind = 'notes',
+  options: ImportOptions = {},
 ): ActionResult & { summary: ImportSummary } {
-  const summary: ImportSummary = { added: 0, archived: 0, completed: 0, duplicates: 0 }
+  const mode = options.mode ?? 'all'
+  const summary: ImportSummary = { added: 0, archived: 0, completed: 0, duplicates: 0, renamed: 0 }
+  const plan = planImport(state, tasks, options)
   const ctx = begin(state, now)
   const toComplete: string[] = []
+  const at = now.toISOString()
 
-  for (const p of tasks) {
-    const action = importAction(ctx.s, p)
+  for (const { task: p, action, existing, complete } of plan) {
     if (action === 'duplicate') {
       summary.duplicates++
       continue
     }
     if (action === 'complete') {
-      toComplete.push(ctx.s.quests.find((q) => q.sourceId === p.fingerprint)!.id)
+      if (mode === 'all') toComplete.push(existing!.id)
+      else summary.duplicates++
       continue
     }
+    if (action === 'renamed') {
+      // та же задача, новый текст в заметке: запоминаем новый fingerprint,
+      // обновляем название, только если ты не переименовала задачу в RPG сама
+      const q = ctx.s.quests.find((x) => x.id === existing!.id)!
+      q.sourceAliases = [...new Set([...(q.sourceAliases ?? []), q.sourceId!])]
+      q.sourceId = p.fingerprint
+      if (q.title === (q.sourceTitle ?? q.title)) q.title = p.title
+      q.sourceTitle = p.title
+      if (p.dueDate && !q.dueDate && isEditable(q)) q.dueDate = p.dueDate
+      q.context = p.context
+      summary.renamed++
+      if (complete && mode === 'all') toComplete.push(q.id)
+      continue
+    }
+    if (action === 'archive' && mode === 'new') continue
+
     const cls = classifyTask(p.title, p.context, ctx.s.goals)
     const base: Quest = {
       id: uid(),
       source,
       sourceId: p.fingerprint,
+      sourceTitle: p.title,
       context: p.context,
       title: p.title,
       description: '',
@@ -406,14 +435,14 @@ export function importTasks(
       goalId: cls.goalId,
       isMain: false,
       status: 'open',
-      createdAt: now.toISOString(),
+      createdAt: at,
       dueDate: p.dueDate,
       xpEarned: 0,
       goldEarned: 0,
       statXpEarned: 0,
     }
     if (action === 'archive') {
-      ctx.s.quests.push({ ...base, status: 'archived', completedAt: now.toISOString() })
+      ctx.s.quests.push({ ...base, status: 'archived', completedAt: at })
       summary.archived++
     } else {
       // без даты — в Inbox на разбор; с датой из текста — сразу в Today/Backlog
@@ -429,7 +458,21 @@ export function importTasks(
     if (r.state !== result.state) summary.completed++
     result = { state: r.state, effects: [...result.effects, ...r.effects] }
   }
-  return { ...result, summary }
+
+  const record: ImportRecord = {
+    id: uid(),
+    at,
+    source: options.sourceLabel ?? 'notes-text',
+    mode,
+    found: tasks.length,
+    added: summary.added,
+    existing: summary.duplicates + summary.renamed,
+    renamed: summary.renamed,
+    completed: summary.completed,
+    archived: summary.archived,
+  }
+  const importLog = [...(result.state.importLog ?? []), record].slice(-IMPORT_LOG_LIMIT)
+  return { state: { ...result.state, importLog }, effects: result.effects, summary }
 }
 
 /**

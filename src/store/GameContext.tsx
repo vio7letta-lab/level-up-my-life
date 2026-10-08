@@ -4,7 +4,7 @@ import { toISODate } from '../game/dates'
 import { createInitialState } from '../game/initialState'
 import { LocalStorageAdapter } from '../storage/localStorageAdapter'
 import type { StorageAdapter } from '../storage/StorageAdapter'
-import type { ImportSummary } from '../game/engine'
+import type { ImportOptions, ImportSummary } from '../game/engine'
 import type { ParsedTask } from '../game/notesParser'
 import type { GameEffect, GameState, ISODate, QuestResult } from '../types'
 
@@ -24,7 +24,7 @@ interface GameApi {
   swapQuest: (id: string) => void
   setInProgress: (id: string, on: boolean) => void
   planTask: (id: string, dueDate: ISODate | null) => void
-  importTasks: (tasks: ParsedTask[]) => ImportSummary
+  importTasks: (tasks: ParsedTask[], options?: ImportOptions) => ImportSummary
   setTemplateQuests: (on: boolean) => void
   addIncome: (input: { amount: number; source: string; date: ISODate }) => void
   deleteIncome: (id: string) => void
@@ -100,10 +100,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       swapQuest: (id) => run((s, now) => engine.swapQuest(s, id, now)),
       setInProgress: (id, on) => run((s, now) => engine.setInProgress(s, id, on, now)),
       planTask: (id, dueDate) => run((s, now) => engine.planTask(s, id, dueDate, now)),
-      importTasks: (tasks) => {
-        let summary: ImportSummary = { added: 0, archived: 0, completed: 0, duplicates: 0 }
+      importTasks: (tasks, options) => {
+        let summary: ImportSummary = { added: 0, archived: 0, completed: 0, duplicates: 0, renamed: 0 }
         run((s, now) => {
-          const r = engine.importTasks(s, tasks, now, 'notes')
+          const r = engine.importTasks(s, tasks, now, 'notes', options)
           summary = r.summary
           return r
         })

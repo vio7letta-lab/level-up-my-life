@@ -102,6 +102,10 @@ export interface Quest {
   source: TaskSourceKind
   /** стабильный id во внешнем источнике (fingerprint) — защита от дубликатов при импорте */
   sourceId?: string
+  /** прежние fingerprints: текст задачи в заметке поменяли — это та же задача, а не новая */
+  sourceAliases?: string[]
+  /** текст задачи в источнике при последнем импорте (чтобы понять, переименовала ли ты её в RPG) */
+  sourceTitle?: string
   /** заголовок из заметки: «Учёба», «Работа»… */
   context?: string
   /** категория = характеристика */
@@ -192,6 +196,22 @@ export interface HistoryEntry {
   questId?: string
 }
 
+/** Запись об одном импорте — для «Последний импорт: сегодня, 15:42 · найдено 17 · новых 13» */
+export interface ImportRecord {
+  id: string
+  at: ISODateTime
+  /** откуда: 'notes-text' | 'clipboard' | 'shortcut-url' | … */
+  source: string
+  /** «новые» — только новые задачи; «всё» — ещё и ✓ с наградой и архив */
+  mode: 'new' | 'all'
+  found: number
+  added: number
+  existing: number
+  renamed: number
+  completed: number
+  archived: number
+}
+
 export interface Settings {
   dailyQuestLimit: number
   /** шаблонные квесты («Учебный блок 40 минут»…) — только если реальных задач на сегодня меньше 3 */
@@ -215,6 +235,8 @@ export interface GameState {
   lastGeneratedDate?: ISODate
   /** последний день, когда было зафиксировано реальное действие */
   lastActivityDate?: ISODate
+  /** журнал импортов задач из внешних источников (последние записи) */
+  importLog: ImportRecord[]
   settings: Settings
 }
 
