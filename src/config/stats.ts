@@ -18,3 +18,5 @@ export const STATS: StatDef[] = [
   { key: 'social', emoji: '🤝', label: 'Social', description: 'Знакомства, связи, коммуникация', tint: '#b7d1c4' },
   { key: 'freedom', emoji: '🌍', label: 'Freedom', description: 'Независимость, путешествия, возможности', tint: '#cfc6f2' },
 ]
+
+export const statDef = (key: StatKey) => STATS.find((s) => s.key === key)!

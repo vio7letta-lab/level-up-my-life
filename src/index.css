@@ -133,6 +133,11 @@
     backdrop-filter: blur(18px);
   }
 
+  /* Cormorant по умолчанию рисует «старинные» цифры (1oo ooo) — включаем цифры в линию */
+  .font-display {
+    font-variant-numeric: lining-nums;
+  }
+
   .eyebrow {
     font-size: 0.6875rem;
     font-weight: 600;

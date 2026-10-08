@@ -10,23 +10,27 @@ export const ROUTES: { id: Route; label: string; icon: string }[] = [
   { id: 'character', label: 'Character', icon: '👤' },
 ]
 
-function parse(hash: string): Route {
-  const id = hash.replace(/^#\/?/, '')
-  return ROUTES.some((r) => r.id === id) ? (id as Route) : 'home'
+function parse(hash: string): { route: Route; param?: string } {
+  const [id, param] = hash.replace(/^#\/?/, '').split('/')
+  return ROUTES.some((r) => r.id === id) ? { route: id as Route, param: param || undefined } : { route: 'home' }
 }
 
-/** Простая hash-навигация (#/goals) — работает на GitHub Pages без настройки сервера. */
+/** Простая hash-навигация (#/goals, #/goals/<id>) — работает на GitHub Pages без настройки сервера. */
 export function useRoute() {
-  const [route, setRoute] = useState<Route>(() => parse(location.hash))
+  const [current, setCurrent] = useState(() => parse(location.hash))
 
   useEffect(() => {
     const onChange = () => {
-      setRoute(parse(location.hash))
+      setCurrent(parse(location.hash))
       window.scrollTo({ top: 0 })
     }
     window.addEventListener('hashchange', onChange)
     return () => window.removeEventListener('hashchange', onChange)
   }, [])
 
-  return { route, navigate: (r: Route) => (location.hash = `/${r}`) }
+  return {
+    route: current.route,
+    param: current.param,
+    navigate: (r: Route, param?: string) => (location.hash = param ? `/${r}/${param}` : `/${r}`),
+  }
 }

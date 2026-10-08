@@ -1,56 +1,102 @@
+import { useState } from 'react'
 import type { Theme } from '../app/useTheme'
+import { AchievementGrid } from '../components/AchievementGrid'
+import { BossCard } from '../components/BossCard'
+import { Button } from '../components/Button'
 import { Card } from '../components/Card'
-import { EmptyState } from '../components/EmptyState'
-import { ProgressBar } from '../components/ProgressBar'
+import { Field, TextInput } from '../components/Field'
+import { LevelCard } from '../components/LevelCard'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { SectionTitle } from '../components/SectionTitle'
+import { Sheet } from '../components/Sheet'
+import { StatBars } from '../components/StatBars'
 import { ThemeToggle } from '../components/ThemeToggle'
-import { APP } from '../config/app'
-import { STATS } from '../config/stats'
+import { formatDate } from '../game/dates'
+import { useGame } from '../store/GameContext'
 
 export function CharacterScreen({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
+  const { state, setPlayerName, resetProgress } = useGame()
+  const [editingName, setEditingName] = useState(false)
+  const [name, setName] = useState(state.profile.name)
+
   return (
     <div className="space-y-7">
       <ScreenHeader
         eyebrow="Главный персонаж"
-        title={APP.playerName}
+        title={state.profile.name}
         aside={<ThemeToggle theme={theme} onToggle={onToggleTheme} />}
       />
+
+      <LevelCard />
 
       <div>
         <SectionTitle>Характеристики</SectionTitle>
         <Card>
-          <ul className="space-y-4">
-            {STATS.map((s) => (
-              <li key={s.key}>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-[15px]">
-                    {s.emoji} <span className="font-medium">{s.label}</span>
-                  </span>
-                  <span className="text-sm text-faint">Lv 1</span>
-                </div>
-                <ProgressBar value={0} tint={s.tint} />
-                <p className="mt-1.5 text-xs text-muted">{s.description}</p>
-              </li>
-            ))}
-          </ul>
+          <StatBars />
         </Card>
       </div>
 
-      <div className="space-y-3">
-        <SectionTitle>Скоро</SectionTitle>
+      <div>
+        <SectionTitle>Текущий босс</SectionTitle>
+        <BossCard />
+        {state.defeatedBosses.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {state.defeatedBosses.map((b) => (
+              <li key={b.id} className="glass flex items-center gap-3 rounded-2xl px-4 py-3 text-sm">
+                <span className="text-xl grayscale">{b.emoji}</span>
+                <span className="flex-1 font-medium line-through decoration-faint">{b.name}</span>
+                <span className="text-xs text-faint">побеждён {b.defeatedAt && formatDate(b.defeatedAt.slice(0, 10))}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div>
+        <SectionTitle aside={`${state.achievements.length} открыто`}>Достижения</SectionTitle>
         <Card>
-          <EmptyState icon="🐉" title="Боссы">Большие проблемы, которые побеждаются реальными действиями.</EmptyState>
-        </Card>
-        <Card>
-          <EmptyState icon="🏆" title="Достижения">First Step, First Client, 10K, Boss Slayer и другие.</EmptyState>
-        </Card>
-        <Card>
-          <EmptyState icon="🎁" title="Награды за GOLD">
-            Ты сама создаёшь приятности и «покупаешь» их за игровое золото. Сон, еда и отдых — не награды, а база.
-          </EmptyState>
+          <AchievementGrid />
         </Card>
       </div>
+
+      <div>
+        <SectionTitle>Настройки</SectionTitle>
+        <div className="space-y-3">
+          <Button variant="ghost" className="w-full" onClick={() => setEditingName(true)}>
+            Изменить имя
+          </Button>
+          <Button
+            variant="quiet"
+            className="w-full"
+            onClick={() => {
+              if (confirm('Начать игру заново? Весь прогресс, история и доход будут удалены.') && confirm('Точно? Это нельзя отменить.')) resetProgress()
+            }}
+          >
+            Начать заново
+          </Button>
+          <p className="px-1 text-center text-xs text-faint">Прогресс хранится только на этом устройстве, в этом браузере.</p>
+        </div>
+      </div>
+
+      {editingName && (
+        <Sheet open onClose={() => setEditingName(false)} title="Имя персонажа">
+          <div className="space-y-5">
+            <Field label="Как тебя называть">
+              <TextInput value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            </Field>
+            <Button
+              className="w-full"
+              disabled={!name.trim()}
+              onClick={() => {
+                setPlayerName(name)
+                setEditingName(false)
+              }}
+            >
+              Сохранить
+            </Button>
+          </div>
+        </Sheet>
+      )}
     </div>
   )
 }

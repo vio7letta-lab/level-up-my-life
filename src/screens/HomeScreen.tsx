@@ -1,9 +1,15 @@
+import { AchievementGrid } from '../components/AchievementGrid'
+import { BossCard } from '../components/BossCard'
 import { Card } from '../components/Card'
-import { EmptyState } from '../components/EmptyState'
+import { GoalCard } from '../components/GoalCard'
+import { LevelCard } from '../components/LevelCard'
 import { ProgressBar } from '../components/ProgressBar'
+import { QuestCard } from '../components/QuestCard'
 import { SectionTitle } from '../components/SectionTitle'
-import { APP } from '../config/app'
-import { STATS } from '../config/stats'
+import { StatBars } from '../components/StatBars'
+import { goalProgress } from '../game/goals'
+import { useGame } from '../store/GameContext'
+import { todayQuests } from '../store/selectors'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -13,99 +19,79 @@ function greeting(): string {
   return 'Добрый вечер'
 }
 
-export function HomeScreen() {
-  const today = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+export function HomeScreen({ onOpenGoal }: { onOpenGoal: (id?: string) => void }) {
+  const { state, today } = useGame()
+  const { main, others, all, completed } = todayQuests(state, today)
+  const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
+  const goals = state.goals
+    .filter((g) => !g.completedAt)
+    .sort((a, b) => goalProgress(state, b, today) - goalProgress(state, a, today))
+    .slice(0, 3)
 
   return (
     <div className="space-y-7">
       <header className="animate-rise">
-        <p className="eyebrow mb-1 first-letter:uppercase">{today}</p>
+        <p className="eyebrow mb-1 first-letter:uppercase">{date}</p>
         <h1 className="font-display text-[44px] leading-none font-semibold tracking-tight">
           {greeting()},<br />
-          <span className="text-accent italic">{APP.playerName}</span>
+          <span className="text-accent italic">{state.profile.name}</span>
         </h1>
       </header>
 
-      {/* Уровень и XP — данные появятся на Этапе 1 */}
-      <Card className="animate-rise">
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="eyebrow">Level</p>
-            <p className="text-6xl leading-none font-semibold tracking-tight">1</p>
-          </div>
-          <div className="text-right">
-            <p className="font-medium">Начало</p>
-            <p className="text-sm text-muted">0 XP</p>
-          </div>
+      <LevelCard />
+
+      <Card className="py-4">
+        <div className="flex items-center justify-between text-sm">
+          <span className="font-medium">Today’s progress</span>
+          <span className="text-muted">
+            {completed} / {all.length}
+          </span>
         </div>
-        <ProgressBar value={0} className="mt-5" />
-        <div className="mt-4 flex gap-2 text-sm">
-          <span className="rounded-full bg-surface-strong px-3 py-1.5">🔥 0 дней</span>
-          <span className="rounded-full bg-surface-strong px-3 py-1.5">✦ 0 gold</span>
-        </div>
+        <ProgressBar value={all.length ? completed / all.length : 0} className="mt-2.5" />
+        {completed === all.length && all.length > 0 && <p className="mt-2 text-sm text-accent">Все квесты дня закрыты. Остальное время — твоё ✨</p>}
       </Card>
 
+      {main && (
+        <div>
+          <SectionTitle>⚔️ Main Quest</SectionTitle>
+          <QuestCard quest={main} compact />
+        </div>
+      )}
+
       <div>
-        <SectionTitle>⚔️ Main Quest</SectionTitle>
-        <Card>
-          <EmptyState icon="⚔️" title="Главный квест дня">
-            Каждое утро здесь будет одно главное реальное действие — ближайший шаг к твоей самой важной цели.
-          </EmptyState>
-        </Card>
+        <SectionTitle aside="сделай → вернись → зафиксируй">Today’s Quests</SectionTitle>
+        <div className="space-y-3">
+          {others.map((q) => (
+            <QuestCard key={q.id} quest={q} compact />
+          ))}
+        </div>
       </div>
 
       <div>
-        <SectionTitle aside="0 / 0">Today’s Quests</SectionTitle>
-        <Card>
-          <EmptyState icon="✓" title="Квесты дня">
-            5–6 реальных задач по направлениям. Закрываешь — указываешь результат — получаешь XP.
-          </EmptyState>
-        </Card>
-      </div>
-
-      <div>
-        <SectionTitle>Current Goals</SectionTitle>
-        <Card>
-          <EmptyState icon="🎯" title="Большие цели">
-            Например, «100 000 ₽ в месяц» — с шагами, процентом и реальными цифрами.
-          </EmptyState>
-        </Card>
+        <SectionTitle aside={<button onClick={() => onOpenGoal()} className="text-accent">все цели →</button>}>Current Goals</SectionTitle>
+        <div className="space-y-3">
+          {goals.map((g) => (
+            <GoalCard key={g.id} goal={g} onOpen={() => onOpenGoal(g.id)} />
+          ))}
+        </div>
       </div>
 
       <div>
         <SectionTitle>Character Stats</SectionTitle>
         <Card>
-          <ul className="grid grid-cols-2 gap-x-5 gap-y-4">
-            {STATS.map((s) => (
-              <li key={s.key}>
-                <div className="mb-1.5 flex items-center justify-between text-sm">
-                  <span>
-                    {s.emoji} <span className="font-medium">{s.label}</span>
-                  </span>
-                  <span className="text-faint">0</span>
-                </div>
-                <ProgressBar value={0} tint={s.tint} className="h-1.5" />
-              </li>
-            ))}
-          </ul>
+          <StatBars compact />
         </Card>
       </div>
 
       <div>
         <SectionTitle>Current Boss</SectionTitle>
-        <Card>
-          <EmptyState icon="🐉" title="Прокрастинация · 100 HP">
-            Каждое реальное действие снимает HP. Босс никуда не торопится и никого не ругает.
-          </EmptyState>
-        </Card>
+        <BossCard />
       </div>
 
       <div>
         <SectionTitle>Recent Achievements</SectionTitle>
         <Card>
-          <EmptyState icon="🏆" title="First Step">
-            Первое достижение откроется после первой выполненной задачи.
-          </EmptyState>
+          <AchievementGrid onlyUnlocked limit={3} />
         </Card>
       </div>
     </div>
