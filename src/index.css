@@ -1,0 +1,151 @@
+@import 'tailwindcss';
+
+/*
+ * Дизайн-токены. Тёмная тема — основная, светлая — «молочная».
+ * Компоненты используют только эти токены (bg-bg, text-muted, border-line…),
+ * поэтому смена темы — это просто смена data-theme на <html>.
+ */
+:root,
+:root[data-theme='dark'] {
+  --bg: #0c0b0f;
+  --bg-glow-1: rgba(150, 125, 220, 0.16);
+  --bg-glow-2: rgba(240, 230, 215, 0.05);
+  --surface: rgba(255, 255, 255, 0.035);
+  --surface-strong: rgba(255, 255, 255, 0.07);
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #f3eee7;
+  --muted: #9b95a6;
+  --faint: #5d5866;
+  --accent: #b9a7e8;
+  --accent-strong: #8f78d6;
+  --accent-soft: rgba(185, 167, 232, 0.13);
+  --on-accent: #120f18;
+  --track: rgba(255, 255, 255, 0.07);
+  --nav: rgba(16, 14, 20, 0.88);
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f5f1ea;
+  --bg-glow-1: rgba(160, 135, 225, 0.18);
+  --bg-glow-2: rgba(255, 255, 255, 0.7);
+  --surface: rgba(255, 255, 255, 0.6);
+  --surface-strong: rgba(255, 255, 255, 0.9);
+  --line: rgba(40, 28, 60, 0.09);
+  --text: #1c1922;
+  --muted: #6d6677;
+  --faint: #a59fae;
+  --accent: #7d66c9;
+  --accent-strong: #6650b5;
+  --accent-soft: rgba(125, 102, 201, 0.1);
+  --on-accent: #ffffff;
+  --track: rgba(40, 28, 60, 0.08);
+  --nav: rgba(250, 247, 242, 0.9);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-track: var(--track);
+  --color-nav: var(--nav);
+
+  --font-sans: 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Cormorant Garamond', ui-serif, Georgia, serif;
+
+  --animate-rise: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fade: fade 0.6s ease both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    background:
+      radial-gradient(120% 60% at 50% -10%, var(--bg-glow-1), transparent 60%),
+      radial-gradient(80% 40% at 100% 100%, var(--bg-glow-2), transparent 70%), var(--bg);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Стеклянная карточка — базовый строительный блок интерфейса */
+  .glass {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+  }
+
+  .eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
