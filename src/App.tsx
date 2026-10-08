@@ -7,10 +7,12 @@ import { FeedbackLayer } from './components/FeedbackLayer'
 import { CharacterScreen } from './screens/CharacterScreen'
 import { GoalsScreen } from './screens/GoalsScreen'
 import { HomeScreen } from './screens/HomeScreen'
-import { QuestsScreen } from './screens/QuestsScreen'
+import { QuestsScreen, type QuestsTab } from './screens/QuestsScreen'
 import { StatsScreen } from './screens/StatsScreen'
 import { WelcomeScreen } from './screens/WelcomeScreen'
 import { GameProvider } from './store/GameContext'
+
+const isQuestsTab = (p?: string): p is QuestsTab => p === 'today' || p === 'inbox' || p === 'backlog' || p === 'history'
 
 export default function App() {
   const { theme, toggle } = useTheme()
@@ -30,9 +32,9 @@ export default function App() {
   }
 
   const screens: Record<Route, ReactNode> = {
-    home: <HomeScreen onOpenGoal={(id) => navigate('goals', id)} />,
+    home: <HomeScreen onOpenGoal={(id) => navigate('goals', id)} onOpenQuests={(t) => navigate('quests', t)} />,
     goals: <GoalsScreen goalId={param} onOpen={(id) => navigate('goals', id)} />,
-    quests: <QuestsScreen />,
+    quests: <QuestsScreen tab={isQuestsTab(param) ? param : 'today'} onTab={(t) => navigate('quests', t === 'today' ? undefined : t)} />,
     stats: <StatsScreen />,
     character: <CharacterScreen theme={theme} onToggleTheme={toggle} />,
   }

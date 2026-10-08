@@ -15,7 +15,7 @@ import { formatDate } from '../game/dates'
 import { useGame } from '../store/GameContext'
 
 export function CharacterScreen({ theme, onToggleTheme }: { theme: Theme; onToggleTheme: () => void }) {
-  const { state, setPlayerName, resetProgress } = useGame()
+  const { state, setPlayerName, resetProgress, setTemplateQuests } = useGame()
   const [editingName, setEditingName] = useState(false)
   const [name, setName] = useState(state.profile.name)
 
@@ -65,6 +65,20 @@ export function CharacterScreen({ theme, onToggleTheme }: { theme: Theme; onTogg
           <Button variant="ghost" className="w-full" onClick={() => setEditingName(true)}>
             Изменить имя
           </Button>
+          <label className="glass flex min-h-14 items-center gap-4 rounded-2xl px-4">
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-medium">Шаблонные квесты</span>
+              <span className="block text-xs text-muted">Игра предлагает квесты, если реальных задач на сегодня меньше 3</span>
+            </span>
+            <input
+              type="checkbox"
+              role="switch"
+              checked={state.settings.templateQuests}
+              onChange={(e) => setTemplateQuests(e.target.checked)}
+              className="size-6 shrink-0 accent-[var(--accent)]"
+              aria-label="Шаблонные квесты"
+            />
+          </label>
           <Button
             variant="quiet"
             className="w-full"

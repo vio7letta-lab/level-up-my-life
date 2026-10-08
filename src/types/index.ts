@@ -78,28 +78,57 @@ export interface QuestTemplate {
   active: boolean
 }
 
-export type QuestStatus = 'open' | 'done' | 'partial' | 'skipped'
+/**
+ * Статусы задачи:
+ * open — новая (NEW), in_progress — в работе, done / partial — выполнено,
+ * skipped — «не сделано» (без штрафа), archived — в архиве без награды
+ * (выполнено ещё до импорта или убрано из списка).
+ */
+export type QuestStatus = 'open' | 'in_progress' | 'done' | 'partial' | 'skipped' | 'archived'
 
-/** Конкретный квест конкретного дня. Хранится навсегда — это история. */
+/** Откуда пришла задача. Новые источники (Todoist, Shortcuts, backend) добавляются сюда. */
+export type TaskSourceKind = 'manual' | 'generated' | 'notes'
+
+/**
+ * Задача = квест. Одна модель на всё: реальная задача из заметок, своя задача
+ * и предложенный игрой шаблонный квест. XP не хранится заранее — он вычисляется
+ * из сложности (questXp), а начисленный записывается в xpEarned.
+ */
 export interface Quest {
   id: string
-  templateId?: string
-  date: ISODate
-  area?: Area
   title: string
+  /** заметки к задаче: критерий результата, детали */
   description: string
+  source: TaskSourceKind
+  /** стабильный id во внешнем источнике (fingerprint) — защита от дубликатов при импорте */
+  sourceId?: string
+  /** заголовок из заметки: «Учёба», «Работа»… */
+  context?: string
+  /** категория = характеристика */
   stat: StatKey
   difficulty: Difficulty
   isMain: boolean
   goalId?: string
   status: QuestStatus
-  /** что именно сделала: кому написала, что опубликовала… */
+  createdAt: ISODateTime
+  /** день, на который запланирована задача; нет даты — Backlog */
+  dueDate?: ISODate
+  /** пришла из импорта и ещё не разобрана */
+  inbox?: boolean
+  /** категория/сложность/цель определены автоматически и ещё не подтверждены */
+  auto?: boolean
+  templateId?: string
+  area?: Area
+  /** «Что получилось?» — сохраняется в History */
   note?: string
   completedAt?: ISODateTime
   xpEarned: number
   goldEarned: number
   statXpEarned: number
 }
+
+/** Псевдоним для новой терминологии: задача из реальной жизни и квест — одно и то же. */
+export type Task = Quest
 
 export interface Boss {
   id: string
@@ -165,6 +194,8 @@ export interface HistoryEntry {
 
 export interface Settings {
   dailyQuestLimit: number
+  /** шаблонные квесты («Учебный блок 40 минут»…) — только если реальных задач на сегодня меньше 3 */
+  templateQuests: boolean
 }
 
 export interface GameState {

@@ -13,8 +13,17 @@ export class LocalStorageAdapter implements StorageAdapter {
     try {
       text = localStorage.getItem(this.key)
       if (!text) return null
-      const state = migrate(JSON.parse(text))
+      const raw = JSON.parse(text)
+      const state = migrate(raw)
       if (!state) throw new Error('unsupported data')
+      // перед обновлением формата сохраняем копию старых данных — на всякий случай
+      if (raw.version !== state.version) {
+        try {
+          localStorage.setItem(`${this.key}:backup-v${raw.version}`, text)
+        } catch {
+          // нет места — миграция всё равно продолжится
+        }
+      }
       return state
     } catch (e) {
       console.error('Не удалось прочитать сохранение', e)

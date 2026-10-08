@@ -31,10 +31,12 @@ interface ChoiceProps<T extends string> {
   onChange: (v: T) => void
   options: { value: T; label: ReactNode }[]
   columns?: number
+  /** компактные подписи — для вкладок в одну строку на узком экране */
+  small?: boolean
 }
 
 /** Крупные кнопки выбора вместо мелких радиокнопок */
-export function Choice<T extends string>({ value, onChange, options, columns = 2 }: ChoiceProps<T>) {
+export function Choice<T extends string>({ value, onChange, options, columns = 2, small = false }: ChoiceProps<T>) {
   return (
     <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
       {options.map((o) => (
@@ -42,7 +44,7 @@ export function Choice<T extends string>({ value, onChange, options, columns = 2
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
-          className={`min-h-12 rounded-2xl border px-3 py-2 text-sm font-medium transition ${
+          className={`min-h-12 rounded-2xl border py-2 font-medium whitespace-nowrap transition ${small ? 'px-1 text-[13px]' : 'px-3 text-sm'} ${
             value === o.value ? 'border-accent bg-accent-soft text-text' : 'border-line bg-surface text-muted'
           }`}
         >

@@ -25,7 +25,7 @@ const D1 = day('2026-10-08')
 function fresh(now = D1): GameState {
   return startDay(createInitialState(now), now)
 }
-const today = (s: GameState, date = '2026-10-08') => s.quests.filter((q) => q.date === date)
+const today = (s: GameState, date = '2026-10-08') => s.quests.filter((q) => q.dueDate === date)
 const mainOf = (s: GameState) => today(s).find((q) => q.isMain)!
 const dailyOf = (s: GameState) => today(s).find((q) => !q.isMain)!
 
@@ -50,18 +50,18 @@ describe('levels', () => {
 })
 
 describe('daily quests', () => {
-  it('creates 1 main quest + one per area, once a day', () => {
+  it('without real tasks: 1 main + 4 template quests from different areas, once a day', () => {
     const s = fresh()
-    expect(today(s)).toHaveLength(6)
+    expect(today(s)).toHaveLength(5)
     expect(today(s).filter((q) => q.isMain)).toHaveLength(1)
-    expect(new Set(today(s).filter((q) => !q.isMain).map((q) => q.area)).size).toBe(5)
+    expect(new Set(today(s).filter((q) => !q.isMain).map((q) => q.area)).size).toBe(4)
     expect(startDay(s, day('2026-10-08', 20))).toBe(s) // повторный запуск в тот же день — ничего
   })
 
   it('rotates templates on the next day and keeps old quests as history', () => {
     const s1 = fresh()
     const s2 = startDay(s1, day('2026-10-09'))
-    expect(s2.quests).toHaveLength(12)
+    expect(s2.quests).toHaveLength(10)
     expect(mainOf(s1).templateId).not.toBe(today(s2, '2026-10-09').find((q) => q.isMain)!.templateId)
   })
 

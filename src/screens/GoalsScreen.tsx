@@ -10,7 +10,8 @@ import { ScreenHeader } from '../components/ScreenHeader'
 import { SectionTitle } from '../components/SectionTitle'
 import { Sheet } from '../components/Sheet'
 import { statDef } from '../config/stats'
-import { formatDate } from '../game/dates'
+import { formatDate, toISODate } from '../game/dates'
+import { isEditable } from '../game/today'
 import { goalCurrent, goalProgress, goalTarget, isCompleted, linkedQuests } from '../game/goals'
 import { useGame } from '../store/GameContext'
 import { incomeThisMonth } from '../store/selectors'
@@ -68,7 +69,7 @@ function GoalDetail({ goal, onBack }: { goal: Goal; onBack: () => void }) {
   const stat = statDef(goal.stat)
   const quests = linkedQuests(state, goal.id)
   const completed = quests.filter(isCompleted).sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
-  const openToday = quests.filter((q) => q.date === today && q.status === 'open')
+  const openToday = quests.filter((q) => isEditable(q) && q.status !== 'skipped').sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'))
   const income = goal.metric.source === 'income' ? incomeThisMonth(state, today) : []
 
   return (
@@ -183,24 +184,24 @@ function GoalDetail({ goal, onBack }: { goal: Goal; onBack: () => void }) {
       )}
 
       <div>
-        <SectionTitle aside={`${completed.length} выполнено`}>Связанные квесты</SectionTitle>
+        <SectionTitle aside={`${completed.length} выполнено`}>Связанные задачи</SectionTitle>
         <Card>
           {openToday.length === 0 && completed.length === 0 ? (
-            <p className="text-sm text-muted">Пока нет квестов, связанных с этой целью. Добавь свой квест на вкладке Quests и выбери эту цель.</p>
+            <p className="text-sm text-muted">Пока нет задач, связанных с этой целью. Выбери эту цель в задаче — «Какая цель?» — и выполнение будет двигать её вперёд.</p>
           ) : (
             <ul className="space-y-3">
               {openToday.map((q) => (
                 <li key={q.id} className="flex items-center gap-3 text-sm">
                   <span className="text-accent">○</span>
                   <span className="flex-1">{q.title}</span>
-                  <span className="text-xs text-faint">сегодня</span>
+                  <span className="text-xs text-faint">{q.inbox ? 'inbox' : !q.dueDate ? 'без даты' : q.dueDate <= today ? 'сегодня' : formatDate(q.dueDate)}</span>
                 </li>
               ))}
               {completed.slice(0, 8).map((q) => (
                 <li key={q.id} className="flex items-center gap-3 text-sm">
                   <span className="text-accent">✓</span>
                   <span className="flex-1 text-muted">{q.title}</span>
-                  <span className="text-xs text-faint">{formatDate(q.date)}</span>
+                  <span className="text-xs text-faint">{q.completedAt && formatDate(toISODate(new Date(q.completedAt)))}</span>
                 </li>
               ))}
             </ul>

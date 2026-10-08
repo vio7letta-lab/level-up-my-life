@@ -4,6 +4,8 @@ import { toISODate } from '../game/dates'
 import { createInitialState } from '../game/initialState'
 import { LocalStorageAdapter } from '../storage/localStorageAdapter'
 import type { StorageAdapter } from '../storage/StorageAdapter'
+import type { ImportSummary } from '../game/engine'
+import type { ParsedTask } from '../game/notesParser'
 import type { GameEffect, GameState, ISODate, QuestResult } from '../types'
 
 type Action = (state: GameState, now: Date) => engine.ActionResult
@@ -20,6 +22,10 @@ interface GameApi {
   updateQuest: (id: string, input: engine.QuestInput) => void
   deleteQuest: (id: string) => void
   swapQuest: (id: string) => void
+  setInProgress: (id: string, on: boolean) => void
+  planTask: (id: string, dueDate: ISODate | null) => void
+  importTasks: (tasks: ParsedTask[]) => ImportSummary
+  setTemplateQuests: (on: boolean) => void
   addIncome: (input: { amount: number; source: string; date: ISODate }) => void
   deleteIncome: (id: string) => void
   createGoal: (input: engine.GoalInput) => void
@@ -92,6 +98,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
       updateQuest: (id, input) => run((s, now) => engine.updateQuest(s, id, input, now)),
       deleteQuest: (id) => run((s) => engine.deleteQuest(s, id)),
       swapQuest: (id) => run((s, now) => engine.swapQuest(s, id, now)),
+      setInProgress: (id, on) => run((s, now) => engine.setInProgress(s, id, on, now)),
+      planTask: (id, dueDate) => run((s, now) => engine.planTask(s, id, dueDate, now)),
+      importTasks: (tasks) => {
+        let summary: ImportSummary = { added: 0, archived: 0, completed: 0, duplicates: 0 }
+        run((s, now) => {
+          const r = engine.importTasks(s, tasks, now, 'notes')
+          summary = r.summary
+          return r
+        })
+        return summary
+      },
+      setTemplateQuests: (on) => run((s, now) => engine.setTemplateQuests(s, on, now)),
       addIncome: (input) => run((s, now) => engine.addIncome(s, input, now)),
       deleteIncome: (id) => run((s) => engine.deleteIncome(s, id)),
       createGoal: (input) => run((s, now) => engine.createGoal(s, input, now)),

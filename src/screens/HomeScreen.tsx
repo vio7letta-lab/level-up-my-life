@@ -9,7 +9,7 @@ import { SectionTitle } from '../components/SectionTitle'
 import { StatBars } from '../components/StatBars'
 import { goalProgress } from '../game/goals'
 import { useGame } from '../store/GameContext'
-import { todayQuests } from '../store/selectors'
+import { homeQuests, inboxTasks, todayQuests } from '../store/selectors'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -19,9 +19,11 @@ function greeting(): string {
   return 'Добрый вечер'
 }
 
-export function HomeScreen({ onOpenGoal }: { onOpenGoal: (id?: string) => void }) {
+export function HomeScreen({ onOpenGoal, onOpenQuests }: { onOpenGoal: (id?: string) => void; onOpenQuests: (tab?: 'inbox') => void }) {
   const { state, today } = useGame()
-  const { mains, others, all, completed } = todayQuests(state, today)
+  const t = todayQuests(state, today)
+  const { mains, picked, hidden } = homeQuests(state, today)
+  const inbox = inboxTasks(state).length
   const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
   const goals = state.goals
     .filter((g) => !g.completedAt)
@@ -44,12 +46,25 @@ export function HomeScreen({ onOpenGoal }: { onOpenGoal: (id?: string) => void }
         <div className="flex items-center justify-between text-sm">
           <span className="font-medium">Today’s progress</span>
           <span className="text-muted">
-            {completed} / {all.length}
+            {t.completed} / {t.total}
           </span>
         </div>
-        <ProgressBar value={all.length ? completed / all.length : 0} className="mt-2.5" />
-        {completed === all.length && all.length > 0 && <p className="mt-2 text-sm text-accent">Все квесты дня закрыты. Остальное время — твоё ✨</p>}
+        <ProgressBar value={t.total ? t.completed / t.total : 0} className="mt-2.5" />
+        {t.completed === t.total && t.total > 0 && <p className="mt-2 text-sm text-accent">Все задачи дня закрыты. Остальное время — твоё ✨</p>}
       </Card>
+
+      {inbox > 0 && (
+        <button onClick={() => onOpenQuests('inbox')} className="glass flex w-full items-center gap-4 rounded-3xl p-4 text-left transition active:scale-[0.99]">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-accent-soft text-xl">📥</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">
+              Inbox · {inbox} {inbox === 1 ? 'новая задача' : inbox < 5 ? 'новые задачи' : 'новых задач'}
+            </span>
+            <span className="block text-sm text-muted">Разобрать: сегодня, завтра или позже</span>
+          </span>
+          <span className="text-accent">→</span>
+        </button>
+      )}
 
       {mains.length > 0 && (
         <div>
@@ -65,10 +80,20 @@ export function HomeScreen({ onOpenGoal }: { onOpenGoal: (id?: string) => void }
       <div>
         <SectionTitle aside="сделай → вернись → зафиксируй">Today’s Quests</SectionTitle>
         <div className="space-y-3">
-          {others.map((q) => (
+          {picked.map((q) => (
             <QuestCard key={q.id} quest={q} compact />
           ))}
+          {picked.length === 0 && mains.length === 0 && (
+            <Card>
+              <p className="text-sm text-muted">На сегодня всё. Новые задачи можно взять из Inbox или Backlog.</p>
+            </Card>
+          )}
         </div>
+        {hidden > 0 && (
+          <button onClick={() => onOpenQuests()} className="mt-3 min-h-11 w-full text-center text-sm font-medium text-accent">
+            ещё {hidden} на сегодня →
+          </button>
+        )}
       </div>
 
       <div>

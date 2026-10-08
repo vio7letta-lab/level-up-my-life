@@ -4,14 +4,17 @@
  */
 import { ACHIEVEMENTS } from '../config/achievements'
 import { DIFFICULTIES, REWARDS } from '../config/rewards'
-import type { Area, Difficulty, GameEffect, GameState, Goal, GoalMetric, HistoryEntry, ISODate, Quest, QuestResult, StatKey } from '../types'
+import type { Area, Difficulty, GameEffect, GameState, Goal, GoalMetric, HistoryEntry, ISODate, Quest, QuestResult, StatKey, TaskSourceKind } from '../types'
+import { classifyTask } from './classify'
 import { createBoss } from './boss'
 import { toISODate } from './dates'
 import { ensureDailyQuests, questFromTemplate } from './daily'
 import { goalCurrent, goalTarget } from './goals'
 import { uid } from './ids'
 import { levelInfo, levelTitle, statLevelInfo } from './levels'
+import type { ParsedTask } from './notesParser'
 import { registerActivity } from './streak'
+import { isActive, isEditable, isPlannedFor } from './today'
 
 export interface ActionResult {
   state: GameState
@@ -156,10 +159,12 @@ export function startDay(state: GameState, now: Date): GameState {
 }
 
 export const STATUS_LABEL: Record<Quest['status'], string> = {
-  open: 'Открыт',
+  open: 'Новая',
+  in_progress: 'В работе',
   done: 'Сделано полностью',
   partial: 'Сделано частично',
   skipped: 'Не сделано',
+  archived: 'В архиве',
 }
 
 /**
@@ -168,10 +173,11 @@ export const STATUS_LABEL: Record<Quest['status'], string> = {
  */
 export function completeQuest(state: GameState, questId: string, result: QuestResult, now: Date): ActionResult {
   const original = state.quests.find((q) => q.id === questId)
-  if (!original || original.status === 'done' || original.status === 'partial') return unchanged(state)
+  if (!isEditable(original)) return unchanged(state)
 
   const ctx = begin(state, now)
   const q = ctx.s.quests.find((x) => x.id === questId)!
+  q.inbox = false
   if (result.status === 'skipped') {
     // «Не сделано» — честно и без штрафа: квест можно вернуть и сделать позже.
     // Заметку не сохраняем: «Что получилось?» относится только к сделанному.
@@ -212,6 +218,15 @@ export function reopenQuest(state: GameState, questId: string, now: Date): Actio
   return done(ctx)
 }
 
+/** Отметить «в работе» / снять отметку. Награды не даёт — это просто фокус. */
+export function setInProgress(state: GameState, questId: string, on: boolean, now: Date): ActionResult {
+  const q = state.quests.find((x) => x.id === questId)
+  if (!q || !isActive(q) || (q.status === 'in_progress') === on) return unchanged(state)
+  const ctx = begin(state, now)
+  ctx.s.quests.find((x) => x.id === questId)!.status = on ? 'in_progress' : 'open'
+  return done(ctx)
+}
+
 export interface QuestInput {
   title: string
   description: string
@@ -220,17 +235,32 @@ export interface QuestInput {
   goalId?: string
   area?: Area
   isMain?: boolean
+  /**
+   * Когда делать: дата, null — без даты (Backlog).
+   * Не указано: для новой задачи — сегодня, при редактировании — без изменений.
+   */
+  dueDate?: ISODate | null
 }
 
-const editable = (q?: Quest) => !!q && (q.status === 'open' || q.status === 'skipped')
+/** Главный квест у дня один: снимаем отметку с остальных незавершённых задач этого дня */
+function unsetMains(ctx: Ctx, date: ISODate | undefined, exceptId?: string) {
+  if (!date) return
+  for (const x of ctx.s.quests) {
+    if (x.id === exceptId || !x.isMain || !isEditable(x)) continue
+    if (date === ctx.today ? isPlannedFor(x, ctx.today) : x.dueDate === date) x.isMain = false
+  }
+}
 
-/** Добавить свой квест на сегодня */
+/** Добавить свою задачу (по умолчанию — на сегодня) */
 export function addQuest(state: GameState, input: QuestInput, now: Date): ActionResult {
   const ctx = begin(state, now)
-  if (input.isMain) ctx.s.quests.forEach((q) => q.date === ctx.today && editable(q) && (q.isMain = false))
+  const dueDate = input.dueDate === undefined ? ctx.today : input.dueDate ?? undefined
+  if (input.isMain) unsetMains(ctx, dueDate)
   ctx.s.quests.push({
     id: uid(),
-    date: ctx.today,
+    source: 'manual',
+    createdAt: now.toISOString(),
+    dueDate,
     area: input.area,
     title: input.title.trim(),
     description: input.description.trim(),
@@ -246,12 +276,17 @@ export function addQuest(state: GameState, input: QuestInput, now: Date): Action
   return done(ctx)
 }
 
-/** Изменить квест (только пока он не выполнен — выполненные неизменны) */
+/**
+ * Изменить задачу (только пока она не выполнена — выполненные неизменны).
+ * Отредактированный шаблонный квест становится твоей задачей.
+ * Задача из Inbox после сохранения считается разобранной.
+ */
 export function updateQuest(state: GameState, questId: string, input: QuestInput, now: Date): ActionResult {
-  if (!editable(state.quests.find((q) => q.id === questId))) return unchanged(state)
+  if (!isEditable(state.quests.find((q) => q.id === questId))) return unchanged(state)
   const ctx = begin(state, now)
   const q = ctx.s.quests.find((x) => x.id === questId)!
-  if (input.isMain && !q.isMain) ctx.s.quests.forEach((x) => x.date === q.date && editable(x) && (x.isMain = false))
+  if (input.dueDate !== undefined) q.dueDate = input.dueDate ?? undefined
+  if (input.isMain) unsetMains(ctx, q.dueDate, q.id)
   Object.assign(q, {
     title: input.title.trim(),
     description: input.description.trim(),
@@ -260,34 +295,156 @@ export function updateQuest(state: GameState, questId: string, input: QuestInput
     goalId: input.goalId || undefined,
     isMain: input.isMain ?? q.isMain,
     templateId: undefined,
+    source: q.source === 'generated' ? 'manual' : q.source,
+    inbox: false,
+    auto: false,
   })
+  if (q.status === 'skipped' && q.dueDate !== ctx.today) q.status = 'open'
   return done(ctx)
 }
 
-export function deleteQuest(state: GameState, questId: string): ActionResult {
-  if (!editable(state.quests.find((q) => q.id === questId))) return unchanged(state)
-  return { state: { ...state, quests: state.quests.filter((q) => q.id !== questId) }, effects: [] }
+/** Разобрать задачу: назначить день (или «без даты») — она уходит из Inbox в Today/Backlog */
+export function planTask(state: GameState, questId: string, dueDate: ISODate | null, now: Date): ActionResult {
+  if (!isEditable(state.quests.find((q) => q.id === questId))) return unchanged(state)
+  const ctx = begin(state, now)
+  const q = ctx.s.quests.find((x) => x.id === questId)!
+  q.dueDate = dueDate ?? undefined
+  q.inbox = false
+  q.auto = false
+  if (q.status === 'skipped') q.status = 'open'
+  return done(ctx)
 }
 
-/** Заменить квест следующим шаблоном того же направления */
+/**
+ * Убрать задачу. Задачи из внешних источников не удаляются физически, а уходят в архив:
+ * иначе при следующем импорте той же заметки они появились бы снова.
+ */
+export function deleteQuest(state: GameState, questId: string): ActionResult {
+  const q = state.quests.find((x) => x.id === questId)
+  if (!isEditable(q)) return unchanged(state)
+  if (q!.sourceId) {
+    return { state: { ...state, quests: state.quests.map((x) => (x.id === questId ? { ...x, status: 'archived', inbox: false, isMain: false } : x)) }, effects: [] }
+  }
+  return { state: { ...state, quests: state.quests.filter((x) => x.id !== questId) }, effects: [] }
+}
+
+/** Заменить шаблонный квест следующим шаблоном того же направления */
 export function swapQuest(state: GameState, questId: string, now: Date): ActionResult {
   const q = state.quests.find((x) => x.id === questId)
-  if (!q || q.status !== 'open' || !q.templateId) return unchanged(state)
+  if (!q || q.status !== 'open' || !q.templateId || !q.dueDate) return unchanged(state)
   const tpl = state.templates.find((t) => t.id === q.templateId)
   if (!tpl) return unchanged(state)
 
   const pool = state.templates.filter((t) => t.active && t.kind === tpl.kind && (tpl.kind === 'main' || t.area === tpl.area))
-  const usedToday = new Set(state.quests.filter((x) => x.date === q.date).map((x) => x.templateId))
+  const usedToday = new Set(state.quests.filter((x) => x.dueDate === q.dueDate).map((x) => x.templateId))
   const start = pool.findIndex((t) => t.id === tpl.id)
   for (let i = 1; i < pool.length; i++) {
     const next = pool[(start + i) % pool.length]
     if (usedToday.has(next.id)) continue
     const ctx = begin(state, now)
     const idx = ctx.s.quests.findIndex((x) => x.id === questId)
-    ctx.s.quests[idx] = { ...questFromTemplate(next, q.date, q.isMain), id: q.id }
+    ctx.s.quests[idx] = { ...questFromTemplate(next, q.dueDate, q.isMain, q.createdAt), id: q.id }
     return done(ctx)
   }
   return unchanged(state)
+}
+
+/* ───────────────────────── Импорт задач ───────────────────────── */
+
+export type ImportAction = 'new' | 'archive' | 'complete' | 'duplicate'
+
+/**
+ * Что произойдёт с задачей при импорте:
+ * - new — новая задача (в Inbox, или сразу в Today/Backlog, если в тексте была дата);
+ * - archive — уже выполнена при первом импорте → в архив без XP;
+ * - complete — была активной в RPG, а в источнике стала ✓ → закрываем с полной наградой (один раз);
+ * - duplicate — уже есть, ничего не меняем.
+ */
+export function importAction(state: GameState, p: ParsedTask): ImportAction {
+  const existing = state.quests.find((q) => q.sourceId === p.fingerprint)
+  if (!existing) return p.done ? 'archive' : 'new'
+  return p.done && isEditable(existing) ? 'complete' : 'duplicate'
+}
+
+export interface ImportSummary {
+  added: number
+  archived: number
+  completed: number
+  duplicates: number
+}
+
+export function importTasks(
+  state: GameState,
+  tasks: ParsedTask[],
+  now: Date,
+  source: TaskSourceKind = 'notes',
+): ActionResult & { summary: ImportSummary } {
+  const summary: ImportSummary = { added: 0, archived: 0, completed: 0, duplicates: 0 }
+  const ctx = begin(state, now)
+  const toComplete: string[] = []
+
+  for (const p of tasks) {
+    const action = importAction(ctx.s, p)
+    if (action === 'duplicate') {
+      summary.duplicates++
+      continue
+    }
+    if (action === 'complete') {
+      toComplete.push(ctx.s.quests.find((q) => q.sourceId === p.fingerprint)!.id)
+      continue
+    }
+    const cls = classifyTask(p.title, p.context, ctx.s.goals)
+    const base: Quest = {
+      id: uid(),
+      source,
+      sourceId: p.fingerprint,
+      context: p.context,
+      title: p.title,
+      description: '',
+      stat: cls.stat,
+      difficulty: cls.difficulty,
+      goalId: cls.goalId,
+      isMain: false,
+      status: 'open',
+      createdAt: now.toISOString(),
+      dueDate: p.dueDate,
+      xpEarned: 0,
+      goldEarned: 0,
+      statXpEarned: 0,
+    }
+    if (action === 'archive') {
+      ctx.s.quests.push({ ...base, status: 'archived', completedAt: now.toISOString() })
+      summary.archived++
+    } else {
+      // без даты — в Inbox на разбор; с датой из текста — сразу в Today/Backlog
+      ctx.s.quests.push({ ...base, inbox: !p.dueDate, auto: true })
+      summary.added++
+    }
+  }
+
+  // Закрытие с наградой идёт через обычный completeQuest — с той же защитой от двойного начисления
+  let result: ActionResult = done(ctx)
+  for (const id of toComplete) {
+    const r = completeQuest(result.state, id, { status: 'done', note: 'Отмечено ✓ в заметке' }, now)
+    if (r.state !== result.state) summary.completed++
+    result = { state: r.state, effects: [...result.effects, ...r.effects] }
+  }
+  return { ...result, summary }
+}
+
+/**
+ * Включить/выключить шаблонные квесты.
+ * Выключение сразу убирает нетронутые шаблонные квесты (выполненные остаются в истории);
+ * включение пересобирает сегодняшний день.
+ */
+export function setTemplateQuests(state: GameState, on: boolean, now: Date): ActionResult {
+  if (state.settings.templateQuests === on) return unchanged(state)
+  const settings = { ...state.settings, templateQuests: on }
+  if (!on) {
+    const quests = state.quests.filter((q) => !(q.source === 'generated' && q.status === 'open'))
+    return { state: { ...state, settings, quests }, effects: [] }
+  }
+  return { state: ensureDailyQuests({ ...state, settings, lastGeneratedDate: undefined }, toISODate(now)), effects: [] }
 }
 
 /* ───────────────────────── Деньги и цели ───────────────────────── */

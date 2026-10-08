@@ -145,7 +145,7 @@ describe('7. Повторное открытие приложения не ду�
     let s = startDay(createInitialState(NOW), NOW)
     s = completeQuest(s, s.quests[0].id, { status: 'done' }, NOW).state
     const reopened = startDay(JSON.parse(JSON.stringify(s)), at('2026-10-08', 23))
-    expect(reopened.quests).toHaveLength(6)
+    expect(reopened.quests).toHaveLength(5)
     expect(reopened.profile).toEqual(s.profile)
     expect(reopened.quests[0].status).toBe('done')
   })
@@ -154,8 +154,8 @@ describe('7. Повторное открытие приложения не ду�
     let s = startDay(createInitialState(NOW), NOW)
     s = completeQuest(s, s.quests[0].id, { status: 'done' }, NOW).state
     const next = startDay(s, at('2026-10-09', 8))
-    expect(next.quests.filter((q) => q.date === '2026-10-09')).toHaveLength(6)
-    expect(next.quests.filter((q) => q.date === '2026-10-09').every((q) => q.status === 'open' && q.xpEarned === 0)).toBe(true)
+    expect(next.quests.filter((q) => q.dueDate === '2026-10-09')).toHaveLength(5)
+    expect(next.quests.filter((q) => q.dueDate === '2026-10-09').every((q) => q.status === 'open' && q.xpEarned === 0)).toBe(true)
     expect(next.profile).toEqual(s.profile)
   })
 })

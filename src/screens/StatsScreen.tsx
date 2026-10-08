@@ -6,7 +6,7 @@ import { ProgressBar } from '../components/ProgressBar'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { SectionTitle } from '../components/SectionTitle'
 import { StatBars } from '../components/StatBars'
-import { addDays } from '../game/dates'
+import { addDays, toISODate } from '../game/dates'
 import { goalProgress, isCompleted, monthlyIncome } from '../game/goals'
 import { levelInfo, levelTitle } from '../game/levels'
 import { displayStreak } from '../game/streak'
@@ -28,7 +28,10 @@ export function StatsScreen() {
   const prevXp = prevWeek.reduce((s, d) => s + d.xp, 0)
   const maxXp = Math.max(1, ...week.map((d) => d.xp))
   const weekStart = week[0].date
-  const weekQuests = state.quests.filter((q) => isCompleted(q) && q.date >= weekStart && q.date <= today).length
+  const weekQuests = state.quests.filter((q) => {
+    const day = q.completedAt ? toISODate(new Date(q.completedAt)) : ''
+    return isCompleted(q) && day >= weekStart && day <= today
+  }).length
   const month = monthlyIncome(state, today)
   const incomeGoal = state.goals.find((g) => g.metric.source === 'income')
   const target = incomeGoal?.metric.target ?? 100000
