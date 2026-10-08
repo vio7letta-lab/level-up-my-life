@@ -13,7 +13,7 @@ export function QuestsScreen() {
   const { state, today } = useGame()
   const [tab, setTab] = useState<'today' | 'history'>('today')
   const [adding, setAdding] = useState(false)
-  const { main, others, all, completed } = todayQuests(state, today)
+  const { mains, others, all, completed } = todayQuests(state, today)
 
   return (
     <div className="space-y-6">
@@ -33,10 +33,14 @@ export function QuestsScreen() {
           <p className="px-1 text-sm leading-relaxed text-muted">
             Закрой приложение, сделай действие в жизни — и вернись зафиксировать результат. Нажимай «Выполнить» только после реального действия.
           </p>
-          {main && (
+          {mains.length > 0 && (
             <div>
               <SectionTitle>⚔️ Main Quest</SectionTitle>
-              <QuestCard quest={main} />
+              <div className="space-y-3">
+                {mains.map((q) => (
+                  <QuestCard key={q.id} quest={q} />
+                ))}
+              </div>
             </div>
           )}
           <div>

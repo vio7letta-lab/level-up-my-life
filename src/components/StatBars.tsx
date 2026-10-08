@@ -2,6 +2,7 @@ import { STATS } from '../config/stats'
 import { statLevelInfo } from '../game/levels'
 import { useGame } from '../store/GameContext'
 import { ProgressBar } from './ProgressBar'
+import { num } from '../utils/format'
 
 /** Характеристики: compact — сетка 2×N для Home, иначе — подробный список */
 export function StatBars({ compact = false }: { compact?: boolean }) {
@@ -40,14 +41,14 @@ export function StatBars({ compact = false }: { compact?: boolean }) {
                 {s.emoji} <span className="font-medium">{s.label}</span>
               </span>
               <span className="text-sm text-muted">
-                Lv {info.level} <span className="text-faint">· {xp} XP</span>
+                Lv {info.level} <span className="text-faint">· {num(xp)} XP</span>
               </span>
             </div>
             <ProgressBar value={info.progress} tint={s.tint} />
             <p className="mt-1.5 flex justify-between gap-3 text-xs text-muted">
               <span>{s.description}</span>
               <span className="shrink-0 text-faint">
-                {info.xpInLevel}/{info.xpForLevel}
+                {num(info.xpInLevel)}/{info.xpForLevel}
               </span>
             </p>
           </li>

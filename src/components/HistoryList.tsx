@@ -1,6 +1,7 @@
 import { statDef } from '../config/stats'
 import { formatDate } from '../game/dates'
 import type { HistoryEntry } from '../types'
+import { num } from '../utils/format'
 
 const ICON: Record<HistoryEntry['type'], string> = {
   quest: '✓',
@@ -13,7 +14,8 @@ const ICON: Record<HistoryEntry['type'], string> = {
 
 /** История: дата → действие → результат → XP → характеристика */
 export function HistoryList({ entries, limit }: { entries: HistoryEntry[]; limit?: number }) {
-  const sorted = [...entries].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit)
+  // новые дни сверху; внутри дня — по времени записи (доход можно записать задним числом)
+  const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at)).slice(0, limit)
   if (!sorted.length) return <p className="px-1 text-sm text-muted">Здесь появится всё, что ты реально сделала.</p>
 
   const groups = new Map<string, HistoryEntry[]>()
@@ -33,13 +35,13 @@ export function HistoryList({ entries, limit }: { entries: HistoryEntry[]; limit
                   {e.result && <p className="mt-0.5 text-sm text-muted">{e.result}</p>}
                 </div>
                 <div className="shrink-0 text-right text-sm">
-                  {e.xp > 0 && <p className="font-semibold text-accent">+{e.xp} XP</p>}
+                  {e.xp > 0 && <p className="font-semibold text-accent">+{num(e.xp)} XP</p>}
                   {e.stat && e.statXp ? (
                     <p className="text-xs text-muted">
-                      {statDef(e.stat).label} +{e.statXp}
+                      {statDef(e.stat).label} +{num(e.statXp)}
                     </p>
                   ) : e.gold > 0 ? (
-                    <p className="text-xs text-muted">+{e.gold} gold</p>
+                    <p className="text-xs text-muted">+{num(e.gold)} gold</p>
                   ) : null}
                 </div>
               </li>

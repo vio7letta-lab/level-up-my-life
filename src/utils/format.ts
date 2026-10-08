@@ -1,6 +1,7 @@
 export const money = (n: number) => `${Math.round(n).toLocaleString('ru-RU')} ₽`
 
-export const num = (n: number) => Math.round(n).toLocaleString('ru-RU')
+/** 1234.5 → «1 234,5»: XP и GOLD могут быть с половинкой после «Сделано частично» */
+export const num = (n: number) => n.toLocaleString('ru-RU', { maximumFractionDigits: 1 })
 
 /** plural(5, ['день', 'дня', 'дней']) → 'дней' */
 export function plural(n: number, forms: [string, string, string]): string {

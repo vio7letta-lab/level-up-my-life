@@ -4,7 +4,7 @@ import { achievementById } from '../config/achievements'
 import { statDef } from '../config/stats'
 import { useGame } from '../store/GameContext'
 import type { GameEffect } from '../types'
-import { days, money } from '../utils/format'
+import { days, money, num } from '../utils/format'
 import { Button } from './Button'
 
 const BIG: GameEffect['type'][] = ['level', 'bossDefeated', 'achievement']
@@ -14,8 +14,8 @@ function lines(effects: GameEffect[]): string[] {
   const out: string[] = []
   for (const e of effects) {
     if (e.type === 'quest') {
-      out.push(`+${e.xp} XP · +${e.gold} gold`)
-      out.push(`${statDef(e.stat).emoji} ${statDef(e.stat).label} +${e.statXp} XP`)
+      out.push(`+${num(e.xp)} XP · +${num(e.gold)} gold`)
+      out.push(`${statDef(e.stat).emoji} ${statDef(e.stat).label} +${num(e.statXp)} XP`)
     }
     if (e.type === 'statLevel') out.push(`${statDef(e.stat).label} → Lv ${e.level}`)
     if (e.type === 'bossHit') out.push(`${e.emoji} ${e.name} −${e.damage} HP`)

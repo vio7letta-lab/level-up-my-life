@@ -6,6 +6,7 @@ import type { Quest, QuestResult } from '../types'
 import { Button } from './Button'
 import { Field, TextArea } from './Field'
 import { Sheet } from './Sheet'
+import { num } from '../utils/format'
 
 const OPTIONS: { value: QuestResult['status']; label: string; hint: string }[] = [
   { value: 'done', label: 'Сделано полностью', hint: '100% награды' },
@@ -50,15 +51,15 @@ export function CompleteQuestSheet({ quest, open, onClose }: { quest: Quest; ope
 
       {status && status !== 'skipped' && (
         <div className="mt-5 animate-rise">
-          <Field label="Что именно сделала? (необязательно)" hint="Например: «Написала Zara, Sela и 12storeez». Это попадёт в историю.">
-            <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Коротко, своими словами" rows={2} />
+          <Field label="Что получилось?" hint="Необязательно. Например: «Написала Zara, Sela и 12storeez, Sela ответила». Сохранится в History.">
+            <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Коротко, своими словами" rows={2} maxLength={300} />
           </Field>
         </div>
       )}
 
       {reward && (
         <p className="mt-4 text-center text-sm text-muted">
-          Награда: <span className="font-semibold text-accent">+{reward.xp} XP</span> · {statDef(quest.stat).label} +{reward.statXp} · +{reward.gold} gold
+          Награда: <span className="font-semibold text-accent">+{num(reward.xp)} XP</span> · {statDef(quest.stat).label} +{num(reward.statXp)} · +{num(reward.gold)} gold
         </p>
       )}
 

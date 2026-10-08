@@ -4,12 +4,15 @@ import type { GameState, ISODate, Quest } from '../types'
 
 export const questsOn = (s: GameState, date: ISODate) => s.quests.filter((q) => q.date === date)
 
-/** Квесты дня: главный отдельно, остальные — открытые сверху */
+/**
+ * Квесты дня: главные отдельно, остальные — открытые сверху.
+ * Главных может быть несколько: например, утренний уже выполнен, а днём добавлен новый.
+ */
 export function todayQuests(s: GameState, today: ISODate) {
   const list = questsOn(s, today)
   const order = (q: Quest) => (q.status === 'open' ? 0 : q.status === 'skipped' ? 1 : 2)
   return {
-    main: list.find((q) => q.isMain),
+    mains: list.filter((q) => q.isMain).sort((a, b) => order(a) - order(b)),
     others: list.filter((q) => !q.isMain).sort((a, b) => order(a) - order(b)),
     all: list,
     completed: list.filter(isCompleted).length,

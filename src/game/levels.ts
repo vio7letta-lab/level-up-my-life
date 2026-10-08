@@ -14,7 +14,7 @@ export interface LevelInfo {
 
 function compute(totalXp: number, curve: { base: number; step: number }): LevelInfo {
   let level = 1
-  let rest = Math.max(0, Math.floor(totalXp))
+  let rest = Math.max(0, totalXp)
   let need = curve.base
   while (rest >= need) {
     rest -= need

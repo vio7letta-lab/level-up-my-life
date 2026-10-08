@@ -21,7 +21,7 @@ function greeting(): string {
 
 export function HomeScreen({ onOpenGoal }: { onOpenGoal: (id?: string) => void }) {
   const { state, today } = useGame()
-  const { main, others, all, completed } = todayQuests(state, today)
+  const { mains, others, all, completed } = todayQuests(state, today)
   const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })
   const goals = state.goals
     .filter((g) => !g.completedAt)
@@ -51,10 +51,14 @@ export function HomeScreen({ onOpenGoal }: { onOpenGoal: (id?: string) => void }
         {completed === all.length && all.length > 0 && <p className="mt-2 text-sm text-accent">Все квесты дня закрыты. Остальное время — твоё ✨</p>}
       </Card>
 
-      {main && (
+      {mains.length > 0 && (
         <div>
           <SectionTitle>⚔️ Main Quest</SectionTitle>
-          <QuestCard quest={main} compact />
+          <div className="space-y-3">
+            {mains.map((q) => (
+              <QuestCard key={q.id} quest={q} compact />
+            ))}
+          </div>
         </div>
       )}
 

@@ -40,19 +40,23 @@ export function questXp(q: Pick<Quest, 'difficulty' | 'isMain'>): number {
   return difficultyDef(q.difficulty).xp * (q.isMain ? REWARDS.mainQuestMultiplier : 1)
 }
 
+/**
+ * Награда за квест. «Частично» — ровно 50% от полной награды по каждой части,
+ * поэтому могут быть половинки (2,5 XP). Полная награда всегда целая:
+ * GOLD = ½ XP (вниз до целого), XP характеристики = 40% XP.
+ */
 export function questReward(q: Pick<Quest, 'difficulty' | 'isMain'>, status: 'done' | 'partial') {
-  const share = status === 'partial' ? REWARDS.partialShare : 1
-  const xp = Math.max(1, Math.round(questXp(q) * share))
-  return {
-    xp,
-    gold: Math.round(xp * REWARDS.goldShare),
-    statXp: Math.max(1, Math.round(xp * REWARDS.statShare)),
-  }
+  const xp = questXp(q)
+  const full = { xp, gold: Math.floor(xp * REWARDS.goldShare), statXp: Math.round(xp * REWARDS.statShare) }
+  if (status === 'done') return full
+  const half = (n: number) => n * REWARDS.partialShare
+  return { xp: half(full.xp), gold: half(full.gold), statXp: half(full.statXp) }
 }
 
+/** Урон боссу: маленький −5, обычный −10, главный −20. «Частично» — половина, округляем вверх (HP целые). */
 export function bossDamage(q: Pick<Quest, 'difficulty' | 'isMain'>, status: 'done' | 'partial'): number {
   const base = Math.max(difficultyDef(q.difficulty).bossDamage, q.isMain ? REWARDS.mainBossDamage : 0)
-  return status === 'partial' ? Math.max(1, Math.round(base * REWARDS.partialShare)) : base
+  return status === 'partial' ? Math.ceil(base * REWARDS.partialShare) : base
 }
 
 function history(ctx: Ctx, e: Omit<HistoryEntry, 'id' | 'at' | 'date'> & { date?: ISODate }) {
@@ -66,10 +70,11 @@ function grant(ctx: Ctx, xp: number, gold: number, stat?: StatKey, statXp = 0) {
   p.totalXp += xp
   p.gold += gold
   const after = levelInfo(p.totalXp).level
-  if (after > before) {
-    ctx.effects.push({ type: 'level', level: after, title: levelTitle(after) })
-    history(ctx, { type: 'level', title: `Level ${after}`, result: levelTitle(after), xp: 0, gold: 0 })
+  // за одно действие можно пройти несколько уровней — каждый попадает в историю
+  for (let lvl = before + 1; lvl <= after; lvl++) {
+    history(ctx, { type: 'level', title: `Level ${lvl}`, result: levelTitle(lvl), xp: 0, gold: 0 })
   }
+  if (after > before) ctx.effects.push({ type: 'level', level: after, title: levelTitle(after) })
 
   if (stat && statXp > 0) {
     const sBefore = statLevelInfo(p.statXp[stat]).level
@@ -167,13 +172,14 @@ export function completeQuest(state: GameState, questId: string, result: QuestRe
 
   const ctx = begin(state, now)
   const q = ctx.s.quests.find((x) => x.id === questId)!
-  q.note = result.note?.trim() || undefined
-
   if (result.status === 'skipped') {
-    // «Не сделано» — честно и без штрафа: квест можно вернуть и сделать позже
+    // «Не сделано» — честно и без штрафа: квест можно вернуть и сделать позже.
+    // Заметку не сохраняем: «Что получилось?» относится только к сделанному.
     q.status = 'skipped'
+    q.note = undefined
     return done(ctx)
   }
+  q.note = result.note?.trim() || undefined
 
   const { xp, gold, statXp } = questReward(q, result.status)
   q.status = result.status
@@ -183,7 +189,7 @@ export function completeQuest(state: GameState, questId: string, result: QuestRe
   q.statXpEarned = statXp
 
   ctx.effects.push({ type: 'quest', title: q.title, status: q.status, xp, gold, stat: q.stat, statXp })
-  history(ctx, { type: 'quest', title: q.title, result: q.note ?? STATUS_LABEL[q.status], xp, gold, stat: q.stat, statXp, questId: q.id })
+  history(ctx, { type: 'quest', title: q.title, result: q.note ? `${STATUS_LABEL[q.status]} · ${q.note}` : STATUS_LABEL[q.status], xp, gold, stat: q.stat, statXp, questId: q.id })
   grant(ctx, xp, gold, q.stat, statXp)
 
   const streak = registerActivity(ctx.s.streak, ctx.today)

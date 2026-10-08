@@ -5,6 +5,7 @@ import { useGame } from '../store/GameContext'
 import type { Quest } from '../types'
 import { CompleteQuestSheet } from './CompleteQuestSheet'
 import { QuestFormSheet } from './QuestFormSheet'
+import { num } from '../utils/format'
 
 /** Карточка квеста: «Выполнить» → «Что реально сделано?» */
 export function QuestCard({ quest, compact = false }: { quest: Quest; compact?: boolean }) {
@@ -51,7 +52,7 @@ export function QuestCard({ quest, compact = false }: { quest: Quest; compact?: 
       <div className="relative mt-4 flex items-center gap-2">
         {finished ? (
           <span className="rounded-full bg-accent-soft px-3 py-1.5 text-sm font-semibold text-accent">
-            {quest.status === 'partial' ? '½ ' : ''}+{quest.xpEarned} XP
+            {quest.status === 'partial' ? '½ ' : ''}+{num(quest.xpEarned)} XP
           </span>
         ) : skipped ? (
           <>

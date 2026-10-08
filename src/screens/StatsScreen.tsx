@@ -81,7 +81,7 @@ export function StatsScreen() {
       </div>
 
       <div>
-        <SectionTitle aside={prevXp > 0 ? `${weekXp >= prevXp ? '▲' : '▼'} прошлая неделя: ${prevXp}` : undefined}>XP за 7 дней · {weekXp}</SectionTitle>
+        <SectionTitle aside={prevXp > 0 ? `${weekXp >= prevXp ? '▲' : '▼'} прошлая неделя: ${num(prevXp)}` : undefined}>XP за 7 дней · {num(weekXp)}</SectionTitle>
         <Card>
           <div className="flex h-36 items-end gap-2">
             {week.map((d) => {
@@ -89,7 +89,7 @@ export function StatsScreen() {
               const [y, m, dd] = d.date.split('-').map(Number)
               return (
                 <div key={d.date} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
-                  <span className="text-[11px] text-muted">{d.xp || ''}</span>
+                  <span className="text-[11px] text-muted">{d.xp ? num(d.xp) : ''}</span>
                   <div
                     className="w-full rounded-lg transition-[height] duration-700"
                     style={{

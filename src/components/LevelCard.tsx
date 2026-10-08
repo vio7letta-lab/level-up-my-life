@@ -24,7 +24,7 @@ export function LevelCard() {
       </div>
       <ProgressBar value={info.progress} className="mt-5" />
       <p className="mt-2 text-xs text-muted">
-        {info.xpInLevel} / {info.xpForLevel} XP · до Level {info.level + 1} осталось {info.xpToNext} XP
+        {num(info.xpInLevel)} / {info.xpForLevel} XP · до Level {info.level + 1} осталось {num(info.xpToNext)} XP
       </p>
       <div className="mt-4 flex flex-wrap gap-2 text-sm">
         <span className="rounded-full bg-surface-strong px-3 py-1.5" title="Дней подряд с реальными действиями">

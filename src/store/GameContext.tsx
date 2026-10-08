@@ -72,6 +72,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const now = new Date()
     const result = action(engine.startDay(current, now), now)
     stateRef.current = result.state
+    // сохраняем сразу, не дожидаясь перерисовки: на iPhone приложение могут закрыть мгновенно
+    storage.save(result.state)
     setToday(toISODate(now))
     setState(result.state)
     if (result.effects.length) setEffects(result.effects)
